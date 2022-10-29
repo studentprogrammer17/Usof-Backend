@@ -18,8 +18,16 @@ app.use(morgan('dev'));
 app.use('/uploads',express.static('uploads'));
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.static('C:/Users/Dimon/Desktop/project-app/public'));
 
+const cors = require('cors');
+const corsOptions ={
+    origin:'http://localhost:3000',
+    credentials:true,     
+    optionSuccessStatus:200
+}
+
+app.use(cors(corsOptions));
 
 // prevent CORS errors
 app.use((req,res,next) => { 

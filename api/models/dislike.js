@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const likeSchema = mongoose.Schema({
+const DislikeSchema = mongoose.Schema({
     _id: mongoose.Schema.Types.ObjectId,
     userLogin: {
         type: String,
@@ -17,5 +17,5 @@ const likeSchema = mongoose.Schema({
     
 }, {timestamps: true});
 
-module.exports = mongoose.model('Like', likeSchema);
+module.exports = mongoose.model('DisLike', DislikeSchema);
 

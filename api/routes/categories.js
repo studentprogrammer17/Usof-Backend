@@ -8,58 +8,71 @@ const checkAuth = require("../middleware/check-auth")
 
 
 router.post("/", checkAuth,  async (req,res,next) => {
-    await Category.find({title: req.body.title})
-    .exec()
-    .then(categor => {
-        if(categor.length >= 1) {
-            return res.status(409).json({
-                message: "This category has already exist"
-            });
-        }
-        else {
-            const category = new Category({
-                _id: new mongoose.Types.ObjectId(),
-                title: req.body.title,
-                description: req.body.description
-            });
-            category
-            .save()
-            .then(result => {
-                console.log(result);
-                res.status(201).json({
-                message: "The category has been created",
-                createdCategory: {
-                    title: result.title,
-                    description: result.description,
-                    }
-                  });
-                })
-            .catch(err => {
-                res.status(500).json({
-                    error: err
+  let isAdmin = false;
+  await User.findById(req.userData.userId)
+  .select('role')
+  .exec()
+  .then(async doc => {
+      if(doc.role === 'admin') {
+        await Category.find({title: req.body.title})
+        .exec()
+        .then(categor => {
+            if(categor.length >= 1) {
+                return res.status(409).json({
+                    message: "Такая категорія вже існує"
                 });
-            });
-        }
+            }
+            else {
+                const category = new Category({
+                    _id: new mongoose.Types.ObjectId(),
+                    title: req.body.title,
+                    description: req.body.description
+                });
+                category
+                .save()
+                .then(result => {
+                    console.log(result);
+                    res.status(201).json({
+                    message: "Категорія була створена",
+                    createdCategory: {
+                        title: result.title,
+                        description: result.description,
+                        }
+                      });
+                    })
+                .catch(err => {
+                    res.status(500).json({
+                        error: err
+                    });
+                });
+            }
+            
+        })
+      }
     });
 });
 
 router.get("/", async (req, res, next) => {
+  const page = parseInt(req.query.page);
+  const limit = parseInt(req.query.limit);
+  const skipIndex = (page - 1) * limit;
     await Category.find()
     .select("title description _id")
+    .limit(limit)
+    .skip(skipIndex)
     .exec()
-    .then(docs => {
-        const response = {
-            count: docs.length,
-            categories: docs.map(doc => {
-                return {
-                    title: doc.title,
-                    description: doc.description,
-                    _id: doc._id,
-                };
-            })
-        };
-        res.status(200).json(response);
-    })
+    .then(async docs => {
+      const response = 
+          docs.map(doc => {
+              return {
+                countCategories: docs.length,
+                title: doc.title,
+                description: doc.description,
+                _id: doc._id,
+              };
+          })
+      res.status(200).json(response);
+  })
     .catch(err => {
         res.status(500).json({
             error: err
@@ -140,11 +153,14 @@ router.patch("/:categoryId", checkAuth, async (req, res, next) => {
     .exec()
     .then(doc => {
         if(doc.role === 'admin') {
-            Category.updateMany({_id: id}, {$set: req.body})
+            Category.updateMany({_id: id}, {$set: {
+              title: req.body.title,
+              description: req.body.description,
+            }})
             .exec()
             .then(result => {
               res.status(200).json({
-                  message: 'Category is edited',
+                  message: 'Категорія змінена',
               });
             })
             .catch(err => {
@@ -174,7 +190,7 @@ router.delete("/:categoryId", checkAuth, async (req,res,next) => {
            .exec()
            .then(result => {
              res.status(200).json({
-                 message: 'Category deleted'
+                 message: 'Категорія видалена'
              });
            })
            .catch(err => {
@@ -191,6 +207,29 @@ router.delete("/:categoryId", checkAuth, async (req,res,next) => {
          }
      });
 });
+
+router.get("/search/:categorN", async (req,res,next) => {
+  const categorN = req.params.categorN;
+  let response = await Category.find(
+      {
+          "$or": [
+              {"title":{$regex: categorN}},
+              {"description":{$regex: categorN}}
+          ]
+      }
+  )
+  .exec()
+  .then()
+  .catch(message => {
+    console.log(message)
+    res.status(500).json({
+      message: "Not found"
+    });
+  });
+
+  res.status(200).json(response);
+});
+
 
 module.exports = router;
 

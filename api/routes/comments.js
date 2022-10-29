@@ -116,17 +116,32 @@ router.post("/:commentId/like", checkAuth, async (req,res,next) => {
 
 
 router.patch("/:commentId", checkAuth, async (req, res, next) => {
-    const id = req.params.commentId;
-    await Comment.findById(id)
-    .select("author")
-    .exec()
-    .then(doc => {
-        if(req.userData.userId === doc.author.toString()) {
-            Comment.updateMany({_id: id}, {$set: req.body})
+  
+  let isAuthorOfPost = false;
+  const id = req.params.commentId;
+  await User.findById(req.userData.userId)
+  .select('login role')
+  .exec()
+  .then(doc => {
+     userLogin = doc.login;
+     userRole = doc.role;
+  });
+
+  await Comment.findById(id)
+  .select("author")
+  .exec()
+  .then(doc => {
+      if(userLogin === doc.author.toString()) {
+          isAuthorOfPost = true;
+      }
+  });
+        if(isAuthorOfPost === true || userRole === 'admin') {
+
+            Comment.updateMany({_id: id}, {$set: {content: req.body.content,edited: true}})
             .exec()
             .then(result => {
               res.status(200).json({
-                  message: 'Comment is edited',
+                  message: 'Коментар змінено!',
               });
             })
             .catch(err => {
@@ -138,24 +153,34 @@ router.patch("/:commentId", checkAuth, async (req, res, next) => {
         }
         else {
             res.status(401).json({
-                message: "you have no rights to change not your posts"
+                message: "you have no rights to change not your comment"
             })
         }
-    });
+
 });
 
 
 router.delete("/:commentId", checkAuth, async (req,res,next) => {
     let isAuthorOfPost = false;
     const id = req.params.commentId;
+
+    await User.findById(req.userData.userId)
+    .select('login role')
+    .exec()
+    .then(doc => {
+       userLogin = doc.login;
+       userRole = doc.role;
+    });
+
     await Comment.findById(id)
     .select("author")
     .exec()
     .then(doc => {
-        if(req.userData.userId === doc.author.toString()) {
+        if(userLogin === doc.author.toString()) {
             isAuthorOfPost = true;
         }
     });
+
     await User.findById(req.userData.userId)
      .select('role')
      .exec()
@@ -165,7 +190,7 @@ router.delete("/:commentId", checkAuth, async (req,res,next) => {
            .exec()
            .then(result => {
              res.status(200).json({
-                 message: 'Comment deleted'
+                 message: 'Коментар видален'
              });
            })
            .catch(err => {
@@ -177,7 +202,7 @@ router.delete("/:commentId", checkAuth, async (req,res,next) => {
          }
          else {
            res.status(401).json({
-             message: "you have no rights to delete post"
+             message: "you have no rights to delete comment"
            })
          }
      });
